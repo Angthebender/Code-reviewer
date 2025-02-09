@@ -35,5 +35,38 @@ def optimize_code():
         "optimized_code":optimized_code
     })
     
+@app.route('/signup',methods=['POST'])
+def signup():
+    data=request.json
+    email = data.get("email")
+    password =data.get("password")
+    
+    if not email or not password:
+        return jsonify({"error": "Email and password are required!"}), 400
+    
+    #here we try to create a new user in supabase
+    try:
+        response=supabase.auth.sign_up({"email": email,"passoword":password})
+        return jsonify({"message":"User created successfully","user":response})
+    except Exception as e:
+        return jsonify({"error":str(e)}),400
+    
+@app.route('/login',methods=['POST'])
+def login():
+    data = request.json
+    email = data.get("email")
+    password = data.get("password")
+
+    if not email or not password:
+        return jsonify({"error": "Email and password are required!"}), 400
+    
+    #similar to what i did for signup here we use the same method for login in instead we get the sesion and signin wiht password usign the supabase feature
+    try:
+        response = supabase.auth.sign_in_with_password({"email": email, "password": password})
+        return jsonify({"message": "Login successful!", "session": response})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+    
+    
 if __name__=='__main__':
     app.run(debug=True)
