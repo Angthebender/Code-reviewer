@@ -1,51 +1,62 @@
 from flask import Flask, request, jsonify
-from transformers import pipeline
 import os
 from dotenv import load_dotenv
+import requests
 from flask_cors import CORS
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+
+# Enable CORS for cross-origin requests
+app = Flask(__name__)
 CORS(app)
+
 # Load environment variables from .env file
 load_dotenv()
 
-# Read Hugging Face token from environment
-huggingface_token = os.getenv("HUGGING_FACE_HUB_TOKEN")
-if not huggingface_token:
-    raise ValueError("⚠️ HUGGING_FACE_HUB_TOKEN is missing. Set it in your .env file.")
+# Read DeepSeek API key from environment
+deepseek_api_key = os.getenv("DEEPLSEEK_API_KEY")
+if not deepseek_api_key:
+    raise ValueError("⚠️ DEEPSEEK_API_KEY is missing. Set it in your .env file.")
 
-# Initialize the Hugging Face text generation pipeline with authentication
-generator = pipeline(
-    "any-to-any",
-    model="onnx-community/Janus-1.3B-ONNX",
-    token=huggingface_token,
-    device="0"
-)
-
-app = Flask(__name__)
-
-@app.route('/')
+@app.route("/", methods=["GET"])
 def home():
-    return "Welcome to the Code Optimizer! This is the backend."
+    return "Welcome to the AI Code Analyzer! Go to /api/message to submit your code for analysis."
 
-@app.route('/optimize', methods=['POST'])
-def optimize_code():
-    code = request.json.get("code")
-    
-    if not code:
+@app.route("/api/message", methods=["POST"])
+def analyze_code():
+    # Get the code from the request
+    data = request.json
+    user_code = data.get("code", "").strip()
+
+    if not user_code:
         return jsonify({"error": "No code provided"}), 400
 
-    # Prepare the prompt
-    prompt = (
-        "Give a optimized form of the code given an dont repeat your self if the code is good then give some comment to better the code here is the code:"
-        
-        f"{code}"
-    )
-    
-    result = generator(prompt, max_length=500, num_return_sequences=1)[0]['generated_text']
-    
-    return jsonify({
-        "optimized_code": result
-    })
+    # Set up DeepSeek API request
+    url = "https://api.deepseek.ai/v1/code/optimize"
+    headers = {
+        "Authorization": f"Bearer {deepseek_api_key}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "code": user_code
+    }
 
-if __name__ == '__main__':
+    try:
+        # Send the code to DeepSeek API for analysis
+        response = requests.post(url, json=payload, headers=headers)
+        response_data = response.json()
+
+        if response.status_code == 200:
+            # Get the optimized code and comments from DeepSeek response
+            optimized_code = response_data.get("optimized_code", "No optimized code returned.")
+            comments = response_data.get("comments", "No comments provided.")
+
+            return jsonify({
+                "comment": comments,
+                "optimized_code": optimized_code
+            })
+        else:
+            return jsonify({"error": "Error during DeepSeek API call", "details": response_data}), 500
+    except Exception as e:
+        return jsonify({"error": f"Error during API request: {str(e)}"}), 500
+
+if __name__ == "__main__":
     app.run(debug=True)
