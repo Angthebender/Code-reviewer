@@ -4,15 +4,17 @@ from dotenv import load_dotenv
 import requests
 from flask_cors import CORS
 
+# Load environment variables from .env file
+load_dotenv()
 # Enable CORS for cross-origin requests
 app = Flask(__name__)
 CORS(app)
 
-# Load environment variables from .env file
-load_dotenv()
+
 
 # Read DeepSeek API key from environment
-deepseek_api_key = os.getenv("DEEPLSEEK_API_KEY")
+deepseek_api_key = os.getenv("DEEPSEEK_API_KEY")\
+
 if not deepseek_api_key:
     raise ValueError("⚠️ DEEPSEEK_API_KEY is missing. Set it in your .env file.")
 

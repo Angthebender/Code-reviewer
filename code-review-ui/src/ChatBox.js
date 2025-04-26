@@ -4,58 +4,59 @@ import './ChatBox.css';
 
 function ChatBox() {
   const [messages, setMessages] = useState([
-    { sender: 'PCR', text: "Hi there! I'm your personal code reviewer" }
+    { sender: 'ai', text: "👋 Hey! I'm your AI Code Reviewer. Send me your code!" }
   ]);
   const [input, setInput] = useState('');
+  const [isThinking, setIsThinking] = useState(false);
 
   const handleSend = async () => {
     if (!input.trim()) return;
 
-    // Add user's message
-    const newMessage = { sender: 'user', text: input };
-    setMessages(prev => [...prev, newMessage]);
+    setMessages(prev => [...prev, { sender: 'user', text: input }]);
+    setIsThinking(true);
 
     try {
-      // Send code to Flask backend
-      const response = await axios.post('http://localhost:5000/api/message', { code: input });
-
-
-      // Choose between 'reply' or 'optimized_code' depending on backend
-      const aiText = response.data.optimized_code || response.data.reply || "No response from AI.";
-
-      const aiMessage = { sender: 'ai', text: aiText };
-      setMessages(prev => [...prev, aiMessage]);
-    } catch (error) {
-      console.error('Error sending message:', error);
-      setMessages(prev => [
-        ...prev,
-        { sender: 'ai', text: "Oops! Something went wrong." }
-      ]);
+      const res = await axios.post('http://localhost:5000/api/message', { code: input });
+      const reply = res.data.optimized_code || "🤖 No response from AI.";
+      setMessages(prev => [...prev, { sender: 'ai', text: reply }]);
+    } catch (err) {
+      setMessages(prev => [...prev, { sender: 'ai', text: "⚠️ Error contacting AI." }]);
     }
 
-    // Clear input
+    setIsThinking(false);
     setInput('');
+  };
+
+  const renderMessage = (msg) => {
+    const parts = msg.text.split(/```([\s\S]+?)```/g);
+    return parts.map((part, i) =>
+      i % 2 === 1 ? (
+        <pre key={i} className="code-block"><code>{part}</code></pre>
+      ) : (
+        <span key={i}>{part}</span>
+      )
+    );
   };
 
   return (
     <div className="chat-container">
-      <div className="header">AI Code Reviewer</div>
+      <div className="header">💬 AI Code Reviewer</div>
       <div className="chat-box">
-        {messages.map((msg, idx) => (
-          <div key={idx} className={`message ${msg.sender}`}>
-            {msg.text}
+        {messages.map((msg, i) => (
+          <div key={i} className={`message ${msg.sender}`}>
+            {renderMessage(msg)}
           </div>
         ))}
+        {isThinking && <div className="thinking">... thinking</div>}
       </div>
       <div className="input-box">
         <input
-          type="text"
-          placeholder="Type your code here..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
+          placeholder="Paste your code..."
           onKeyDown={(e) => e.key === 'Enter' && handleSend()}
         />
-        <button onClick={handleSend}>🔼</button>
+        <button onClick={handleSend}>Send</button>
       </div>
     </div>
   );
